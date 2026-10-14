@@ -1,0 +1,6 @@
+flask
+flask-cors
+flask-mail
+pdfplumber
+docx2txt
+werkzeug

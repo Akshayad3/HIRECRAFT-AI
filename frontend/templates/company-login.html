@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Company Login — HireCraft AI</title>
+<link rel="stylesheet" href="/static/css/main.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body class="auth-body">
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-3"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <span class="brand-icon"><i class="fas fa-brain"></i></span>
+    <span class="brand-name">HireCraft<span class="accent">AI</span></span>
+  </a>
+  <div class="nav-links">
+    <a href="index.html" class="nav-link">Home</a>
+    <a href="user-login.html" class="nav-link">Candidate</a>
+  </div>
+</nav>
+
+<div class="auth-wrapper">
+  <div class="auth-card" style="max-width:560px;">
+    <div class="auth-header">
+      <div class="auth-icon company-icon">
+        <i class="fas fa-building-columns"></i>
+      </div>
+      <h2>Company Portal</h2>
+      <p>Sign in to manage applications and shortlist candidates</p>
+    </div>
+
+    <div class="demo-creds">
+      <div class="demo-header">
+        <i class="fas fa-circle-info"></i> Demo Credentials — Click any to fill
+      </div>
+      <div class="demo-list">
+        <div class="demo-item" onclick="fillCreds('infosys@hirecraft.com','infosys123')">
+          <i class="fas fa-code"></i> Infosys
+        </div>
+        <div class="demo-item" onclick="fillCreds('wipro@hirecraft.com','wipro123')">
+          <i class="fas fa-server"></i> Wipro
+        </div>
+        <div class="demo-item" onclick="fillCreds('tcs@hirecraft.com','tcs123')">
+          <i class="fas fa-laptop-code"></i> TCS
+        </div>
+        <div class="demo-item" onclick="fillCreds('accenture@hirecraft.com','accenture123')">
+          <i class="fas fa-chart-line"></i> Accenture
+        </div>
+        <div class="demo-item" onclick="fillCreds('mahindra@hirecraft.com','mahindra123')">
+          <i class="fas fa-industry"></i> Mahindra
+        </div>
+        <div class="demo-item" onclick="fillCreds('hcl@hirecraft.com','hcl123')">
+          <i class="fas fa-network-wired"></i> HCL
+        </div>
+        <div class="demo-item" onclick="fillCreds('techmahindra@hirecraft.com','techmahindra123')">
+          <i class="fas fa-mobile-alt"></i> Tech Mahindra
+        </div>
+        <div class="demo-item" onclick="fillCreds('cognizant@hirecraft.com','cognizant123')">
+          <i class="fas fa-brain"></i> Cognizant
+        </div>
+        <div class="demo-item" onclick="fillCreds('amazon@hirecraft.com','amazon123')">
+          <i class="fas fa-shopping-cart"></i> Amazon
+        </div>
+        <div class="demo-item" onclick="fillCreds('google@hirecraft.com','google123')">
+          <i class="fas fa-search"></i> Google
+        </div>
+        <div class="demo-item" onclick="fillCreds('microsoft@hirecraft.com','microsoft123')">
+          <i class="fas fa-windows"></i> Microsoft
+        </div>
+        <div class="demo-item" onclick="fillCreds('ibm@hirecraft.com','ibm123')">
+          <i class="fas fa-database"></i> IBM
+        </div>
+        <div class="demo-item" onclick="fillCreds('deloitte@hirecraft.com','deloitte123')">
+          <i class="fas fa-briefcase"></i> Deloitte
+        </div>
+        <div class="demo-item" onclick="fillCreds('capgemini@hirecraft.com','capgemini123')">
+          <i class="fas fa-globe"></i> Capgemini
+        </div>
+        <div class="demo-item" onclick="fillCreds('oracle@hirecraft.com','oracle123')">
+          <i class="fas fa-cloud"></i> Oracle
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Company Email</label>
+      <div class="input-wrap">
+        <i class="fas fa-envelope input-icon"></i>
+        <input type="email" id="companyEmail"
+               placeholder="company@hirecraft.com"
+               class="form-input"/>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <div class="input-wrap">
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" id="companyPassword"
+               placeholder="••••••••" class="form-input"/>
+        <button class="toggle-pwd" onclick="togglePwd()">
+          <i class="fas fa-eye" id="eyeIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="loginError" class="alert alert-error hidden"></div>
+    <div id="loginSuccess" class="alert alert-success hidden"></div>
+
+    <button class="btn-primary full-width" id="loginBtn" onclick="companyLogin()">
+      <i class="fas fa-sign-in-alt"></i> Sign In
+    </button>
+
+    <div class="auth-divider"><span>or</span></div>
+    <a href="index.html" class="btn-ghost full-width">
+      <i class="fas fa-home"></i> Back to Home
+    </a>
+  </div>
+</div>
+
+<script>
+  function fillCreds(email, pwd) {
+    document.getElementById('companyEmail').value    = email;
+    document.getElementById('companyPassword').value = pwd;
+    document.getElementById('loginError').classList.add('hidden');
+  }
+
+  function togglePwd() {
+    var inp  = document.getElementById('companyPassword');
+    var icon = document.getElementById('eyeIcon');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      inp.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  }
+
+  function companyLogin() {
+    var email    = document.getElementById('companyEmail').value.trim();
+    var password = document.getElementById('companyPassword').value;
+    var errEl    = document.getElementById('loginError');
+    var sucEl    = document.getElementById('loginSuccess');
+    var btn      = document.getElementById('loginBtn');
+
+    errEl.classList.add('hidden');
+    sucEl.classList.add('hidden');
+
+    if (!email) {
+      errEl.textContent = 'Please enter company email';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    if (!password) {
+      errEl.textContent = 'Please enter password';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.textContent = 'Signing in...';
+    btn.disabled    = true;
+
+    fetch('/api/company/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email: email, password: password })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+      btn.disabled  = false;
+
+      if (d.success) {
+        sucEl.textContent = 'Login successful! Redirecting...';
+        sucEl.classList.remove('hidden');
+        setTimeout(function() {
+          window.location.href = 'company-dashboard.html';
+        }, 800);
+      } else {
+        errEl.textContent = d.error || 'Invalid credentials';
+        errEl.classList.remove('hidden');
+      }
+    })
+    .catch(function(err) {
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+      btn.disabled  = false;
+      errEl.textContent = 'Server error. Make sure backend is running on port 5000.';
+      errEl.classList.remove('hidden');
+      console.error('Login error:', err);
+    });
+  }
+
+  document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') companyLogin();
+  });
+</script>
+</body>
+</html>

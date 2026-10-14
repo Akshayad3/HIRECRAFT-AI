@@ -1,0 +1,558 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Candidate Dashboard — HireCraft AI</title>
+<link rel="stylesheet" href="/static/css/main.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body class="dash-body">
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <span class="brand-icon"><i class="fas fa-brain"></i></span>
+    <span class="brand-name">HireCraft<span class="accent">AI</span></span>
+  </a>
+  <div class="nav-links">
+    <span class="nav-user">
+      <i class="fas fa-circle-user"></i>
+      <span id="navEmail">...</span>
+    </span>
+    <button class="btn-logout" onclick="doLogout()">
+      <i class="fas fa-right-from-bracket"></i> Logout
+    </button>
+  </div>
+</nav>
+
+<div class="dashboard-wrapper">
+
+  <!-- LEFT MAIN -->
+  <div class="dashboard-main">
+    <div class="dash-header">
+      <h1>Apply for a Position</h1>
+      <p>Upload your resume and let our AI match your skills</p>
+    </div>
+
+    <!-- STEP 1 -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="step-badge">1</span>
+        <h3>Select Company and Job Role</h3>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Company</label>
+          <div class="select-wrap">
+            <select id="companySelect" class="form-select">
+              <option value="">Loading companies...</option>
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Job Role</label>
+          <div class="select-wrap">
+            <select id="jobSelect" class="form-select" disabled>
+              <option value="">— Select Role —</option>
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+      </div>
+
+      <div id="skillsPreview" class="skills-preview hidden">
+        <div class="skills-preview-header">
+          <span><i class="fas fa-list-check"></i> Required Skills</span>
+          <span class="skills-count" id="skillsCount">0 skills</span>
+        </div>
+        <div id="skillsTags" class="skills-tags"></div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="form-card">
+      <div class="form-card-header">
+        <span class="step-badge">2</span>
+        <h3>Upload Your Resume</h3>
+      </div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="resumeFile"
+               accept=".pdf,.docx,.doc,.txt" hidden/>
+        <div class="upload-icon">
+          <i class="fas fa-cloud-arrow-up"></i>
+        </div>
+        <div class="upload-text">
+          <p class="upload-title">
+            Drop your resume here or
+            <span class="upload-link">click to browse</span>
+          </p>
+          <p class="upload-hint">Supports PDF, DOCX, DOC, TXT</p>
+        </div>
+      </div>
+      <div id="fileSelectedBox" class="file-selected hidden">
+        <i class="fas fa-file-circle-check"></i>
+        <span id="fileName">file.pdf</span>
+        <button onclick="clearFile()" class="file-clear">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="submitError" class="alert alert-error hidden"></div>
+
+    <button class="btn-primary full-width btn-large"
+            id="submitBtn" onclick="submitResume()">
+      <i class="fas fa-paper-plane"></i> Submit Application
+    </button>
+
+    <div id="resultCard" class="result-card hidden">
+      <div id="resultContent"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="dashboard-sidebar">
+    <div class="sidebar-header">
+      <h3><i class="fas fa-clock-rotate-left"></i> My Applications</h3>
+      <button class="btn-refresh" onclick="loadApplications()">
+        <i class="fas fa-arrows-rotate"></i>
+      </button>
+    </div>
+    <div id="applicationsList" class="applications-list">
+      <div class="empty-state">
+        <i class="fas fa-inbox"></i>
+        <p>No applications yet</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-card">
+    <div class="loading-spinner"></div>
+    <p>Analyzing your resume with AI...</p>
+    <span>Matching skills against requirements</span>
+  </div>
+</div>
+
+<script>
+
+// ══════════════════════════════════════════════════════
+// ON PAGE LOAD
+// ══════════════════════════════════════════════════════
+window.onload = function() {
+  checkSessionAndLoad();
+};
+
+function checkSessionAndLoad() {
+  fetch('/api/user/session', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.user_email) {
+        window.location.href = 'user-login.html';
+        return;
+      }
+      document.getElementById('navEmail').textContent = d.user_email;
+      loadCompanies();
+      loadApplications();
+    })
+    .catch(function(err) {
+      console.log('Session error:', err);
+      window.location.href = 'user-login.html';
+    });
+}
+
+// ══════════════════════════════════════════════════════
+// LOAD COMPANIES
+// ══════════════════════════════════════════════════════
+function loadCompanies() {
+  var sel = document.getElementById('companySelect');
+  sel.innerHTML = '<option value="">Loading...</option>';
+
+  fetch('/api/companies', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      sel.innerHTML = '<option value="">— Select Company —</option>';
+      if (data.companies && data.companies.length > 0) {
+        for (var i = 0; i < data.companies.length; i++) {
+          var opt = document.createElement('option');
+          opt.value       = data.companies[i];
+          opt.textContent = data.companies[i];
+          sel.appendChild(opt);
+        }
+      } else {
+        sel.innerHTML = '<option value="">No companies found</option>';
+      }
+    })
+    .catch(function(err) {
+      console.log('Company fetch error:', err);
+      sel.innerHTML = '<option value="">Error loading companies</option>';
+    });
+}
+
+// ══════════════════════════════════════════════════════
+// COMPANY CHANGE → LOAD JOBS
+// ══════════════════════════════════════════════════════
+document.getElementById('companySelect').addEventListener('change', function() {
+  var company = this.value;
+  var jobSel  = document.getElementById('jobSelect');
+
+  jobSel.innerHTML = '<option value="">— Select Role —</option>';
+  jobSel.disabled  = true;
+  document.getElementById('skillsPreview').classList.add('hidden');
+
+  if (!company) return;
+
+  fetch('/api/jobs/' + encodeURIComponent(company), { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.jobs && data.jobs.length > 0) {
+        for (var i = 0; i < data.jobs.length; i++) {
+          var opt = document.createElement('option');
+          opt.value       = data.jobs[i];
+          opt.textContent = data.jobs[i];
+          jobSel.appendChild(opt);
+        }
+        jobSel.disabled = false;
+      }
+    })
+    .catch(function(err) {
+      console.log('Jobs fetch error:', err);
+    });
+});
+
+// ══════════════════════════════════════════════════════
+// JOB CHANGE → LOAD SKILLS
+// ══════════════════════════════════════════════════════
+document.getElementById('jobSelect').addEventListener('change', function() {
+  var company = document.getElementById('companySelect').value;
+  var role    = this.value;
+  var preview = document.getElementById('skillsPreview');
+
+  if (!company || !role) {
+    preview.classList.add('hidden');
+    return;
+  }
+
+  var url = '/api/skills/' + encodeURIComponent(company) +
+            '/' + encodeURIComponent(role);
+
+  fetch(url, { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.skills && data.skills.length > 0) {
+        document.getElementById('skillsCount').textContent =
+          data.skills.length + ' skills';
+        var html = '';
+        for (var i = 0; i < data.skills.length; i++) {
+          html += '<span class="skill-tag">' + data.skills[i] + '</span>';
+        }
+        document.getElementById('skillsTags').innerHTML = html;
+        preview.classList.remove('hidden');
+      }
+    })
+    .catch(function(err) {
+      console.log('Skills fetch error:', err);
+    });
+});
+
+// ══════════════════════════════════════════════════════
+// FILE UPLOAD HANDLERS
+// ══════════════════════════════════════════════════════
+document.getElementById('uploadZone').addEventListener('click', function() {
+  document.getElementById('resumeFile').click();
+});
+
+document.getElementById('resumeFile').addEventListener('change', function() {
+  if (!this.files || !this.files[0]) return;
+  showFile(this.files[0].name);
+});
+
+document.getElementById('uploadZone').addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.classList.add('dragover');
+});
+
+document.getElementById('uploadZone').addEventListener('dragleave', function() {
+  this.classList.remove('dragover');
+});
+
+document.getElementById('uploadZone').addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.classList.remove('dragover');
+  var file = e.dataTransfer.files[0];
+  if (!file) return;
+  var dt = new DataTransfer();
+  dt.items.add(file);
+  document.getElementById('resumeFile').files = dt.files;
+  showFile(file.name);
+});
+
+function showFile(name) {
+  document.getElementById('fileName').textContent = name;
+  document.getElementById('fileSelectedBox').classList.remove('hidden');
+  document.getElementById('uploadZone').style.opacity       = '0.4';
+  document.getElementById('uploadZone').style.pointerEvents = 'none';
+}
+
+function clearFile() {
+  document.getElementById('resumeFile').value = '';
+  document.getElementById('fileSelectedBox').classList.add('hidden');
+  document.getElementById('uploadZone').style.opacity       = '1';
+  document.getElementById('uploadZone').style.pointerEvents = 'auto';
+}
+
+// ══════════════════════════════════════════════════════
+// SUBMIT RESUME
+// ══════════════════════════════════════════════════════
+function submitResume() {
+  var company = document.getElementById('companySelect').value;
+  var role    = document.getElementById('jobSelect').value;
+  var file    = document.getElementById('resumeFile').files[0];
+  var errEl   = document.getElementById('submitError');
+
+  errEl.classList.add('hidden');
+
+  if (!company) {
+    errEl.textContent = 'Please select a company';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!role) {
+    errEl.textContent = 'Please select a job role';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!file) {
+    errEl.textContent = 'Please upload your resume file';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+  document.getElementById('submitBtn').disabled = true;
+
+  var formData = new FormData();
+  formData.append('resume',   file);
+  formData.append('company',  company);
+  formData.append('job_role', role);
+
+  fetch('/api/submit-resume', {
+    method: 'POST',
+    credentials: 'include',
+    body: formData
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+    if (d.success) {
+      renderResult(d, company, role);
+      loadApplications();
+      clearFile();
+    } else {
+      errEl.textContent = d.error || 'Submission failed. Try again.';
+      errEl.classList.remove('hidden');
+    }
+  })
+  .catch(function() {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+    errEl.textContent = 'Server error. Make sure backend is running.';
+    errEl.classList.remove('hidden');
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER RESULT
+// ══════════════════════════════════════════════════════
+function renderResult(d, company, role) {
+  var card          = document.getElementById('resultCard');
+  var isShortlisted = d.status === 'shortlisted';
+  var color         = isShortlisted ? 'var(--success)' : 'var(--danger)';
+  var iconClass     = isShortlisted ? 'fa-circle-check' : 'fa-circle-xmark';
+  var statusClass   = isShortlisted ? 'success' : 'fail';
+
+  var matchedHTML = '';
+  for (var i = 0; i < d.matched_skills.length; i++) {
+    matchedHTML += '<span class="skill-tag matched">' + d.matched_skills[i] + '</span>';
+  }
+  if (!matchedHTML) {
+    matchedHTML = '<span style="color:var(--text-dim);font-size:13px">None matched</span>';
+  }
+
+  var missingHTML = '';
+  for (var j = 0; j < d.missing_skills.length; j++) {
+    missingHTML += '<span class="skill-tag missing">' + d.missing_skills[j] + '</span>';
+  }
+  if (!missingHTML) {
+    missingHTML = '<span style="color:var(--success);font-size:13px">No skill gaps!</span>';
+  }
+
+  var announcementHTML = '';
+  if (isShortlisted) {
+    announcementHTML =
+      '<div style="' +
+        'margin-top:20px;padding:28px 24px;' +
+        'background:linear-gradient(135deg,rgba(34,211,160,0.15),rgba(34,211,160,0.05));' +
+        'border:2px solid rgba(34,211,160,0.4);' +
+        'border-radius:14px;text-align:center;">' +
+        '<div style="font-size:52px;margin-bottom:14px">🎉</div>' +
+        '<div style="font-family:Syne,sans-serif;font-size:24px;font-weight:800;' +
+          'color:var(--success);margin-bottom:10px;">Congratulations!</div>' +
+        '<div style="font-size:17px;font-weight:600;color:#e8edf5;margin-bottom:6px;">' +
+          'You have been selected to</div>' +
+        '<div style="font-family:Syne,sans-serif;font-size:22px;font-weight:800;' +
+          'color:var(--success);margin-bottom:6px;">' + company + '</div>' +
+        '<div style="font-size:14px;color:#7a8499;margin-bottom:20px;">' +
+          'Position: <strong style="color:#e8edf5">' + role + '</strong></div>' +
+        '<div style="display:inline-block;padding:12px 28px;background:var(--success);' +
+          'color:#000;font-weight:700;border-radius:50px;font-size:15px;margin-bottom:14px;">' +
+          '✓ Shortlisted Successfully</div>' +
+        '<div style="font-size:13px;color:#7a8499;margin-top:12px;padding:10px;' +
+          'background:rgba(255,255,255,0.03);border-radius:8px;">' +
+          'The HR team will review your profile and contact you soon for next steps.' +
+        '</div>' +
+      '</div>';
+  } else {
+    announcementHTML =
+      '<div style="' +
+        'margin-top:20px;padding:28px 24px;' +
+        'background:linear-gradient(135deg,rgba(255,90,106,0.12),rgba(255,90,106,0.04));' +
+        'border:2px solid rgba(255,90,106,0.35);' +
+        'border-radius:14px;text-align:center;">' +
+        '<div style="font-size:48px;margin-bottom:14px">😔</div>' +
+        '<div style="font-family:Syne,sans-serif;font-size:22px;font-weight:800;' +
+          'color:var(--danger);margin-bottom:10px;">Not Shortlisted</div>' +
+        '<div style="font-size:15px;color:#e8edf5;margin-bottom:6px;">' +
+          'You did not meet the required skill threshold for</div>' +
+        '<div style="font-size:18px;font-weight:700;color:#ff8a96;margin-bottom:16px;">' +
+          role + ' at ' + company + '</div>' +
+        '<div style="font-size:13px;color:#7a8499;margin-bottom:18px;padding:14px;' +
+          'background:rgba(255,255,255,0.03);border-radius:8px;line-height:1.7;">' +
+          'Minimum required match is <strong style="color:#ff8a96">70%</strong>.<br>' +
+          'Your score is <strong style="color:#ff8a96">' + d.match_percentage + '%</strong>.<br>' +
+          'Work on the missing skills listed above and apply again!' +
+        '</div>' +
+        '<div style="display:inline-block;padding:12px 28px;' +
+          'background:rgba(255,90,106,0.2);border:1px solid rgba(255,90,106,0.4);' +
+          'color:#ff8a96;font-weight:700;border-radius:50px;font-size:14px;">' +
+          'Keep upskilling and apply again!</div>' +
+      '</div>';
+  }
+
+  document.getElementById('resultContent').innerHTML =
+    '<div class="result-header">' +
+      '<div class="result-status-icon ' + statusClass + '">' +
+        '<i class="fas ' + iconClass + '"></i>' +
+      '</div>' +
+      '<div>' +
+        '<div class="result-title">' +
+          (isShortlisted ? 'You are Shortlisted!' : 'Not Shortlisted') +
+        '</div>' +
+        '<div class="result-subtitle">' + company + ' · ' + role + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="match-bar-wrap">' +
+      '<div class="match-bar-label">' +
+        '<span>Skill Match Score</span>' +
+        '<strong style="color:' + color + '">' + d.match_percentage + '%</strong>' +
+      '</div>' +
+      '<div class="match-bar-bg">' +
+        '<div class="match-bar-fill ' + (isShortlisted ? 'high' : 'low') + '" ' +
+             'id="matchFill" style="width:0%"></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="result-skills-grid">' +
+      '<div class="result-skills-section">' +
+        '<h4>Matched Skills (' + d.matched_skills.length + ')</h4>' +
+        '<div class="skills-tags">' + matchedHTML + '</div>' +
+      '</div>' +
+      '<div class="result-skills-section">' +
+        '<h4>Missing Skills (' + d.missing_skills.length + ')</h4>' +
+        '<div class="skills-tags">' + missingHTML + '</div>' +
+      '</div>' +
+    '</div>' +
+    announcementHTML;
+
+  card.classList.remove('hidden');
+
+  setTimeout(function() {
+    var fill = document.getElementById('matchFill');
+    if (fill) fill.style.width = d.match_percentage + '%';
+  }, 100);
+
+  card.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════════════
+// LOAD MY APPLICATIONS SIDEBAR
+// ══════════════════════════════════════════════════════
+function loadApplications() {
+  fetch('/api/user/applications', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var list = document.getElementById('applicationsList');
+      if (!d.applications || d.applications.length === 0) {
+        list.innerHTML =
+          '<div class="empty-state">' +
+            '<i class="fas fa-inbox"></i>' +
+            '<p>No applications yet</p>' +
+          '</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < d.applications.length; i++) {
+        var a    = d.applications[i];
+        var isS2 = a.status === 'shortlisted';
+        html +=
+          '<div class="app-item">' +
+            '<div class="app-item-header">' +
+              '<span class="app-company">' + a.company_name + '</span>' +
+              '<span class="status-badge status-' + a.status + '">' +
+                a.status +
+              '</span>' +
+            '</div>' +
+            '<div class="app-role">' + a.job_role + '</div>' +
+            '<div class="app-match">' +
+              '<span style="font-size:12px;color:var(--text-muted);min-width:38px">' +
+                a.match_percentage + '%' +
+              '</span>' +
+              '<div class="app-match-bar">' +
+                '<div class="app-match-fill ' + (isS2 ? 'high' : 'low') + '" ' +
+                     'style="width:' + a.match_percentage + '%"></div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      }
+      list.innerHTML = html;
+    })
+    .catch(function(err) {
+      console.log('Applications error:', err);
+    });
+}
+
+// ══════════════════════════════════════════════════════
+// LOGOUT
+// ══════════════════════════════════════════════════════
+function doLogout() {
+  fetch('/api/user/logout', {
+    method: 'POST',
+    credentials: 'include'
+  })
+  .then(function() {
+    window.location.href = 'index.html';
+  });
+}
+
+</script>
+</body>
+</html>

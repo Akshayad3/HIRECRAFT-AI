@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Company Dashboard — HireCraft AI</title>
+<link rel="stylesheet" href="/static/css/main.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+</head>
+<body class="company-dash-body">
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-3"></div>
+
+<nav class="navbar">
+  <a href="index.html" class="nav-brand">
+    <span class="brand-icon"><i class="fas fa-brain"></i></span>
+    <span class="brand-name">HireCraft<span class="accent">AI</span></span>
+  </a>
+  <div class="nav-links">
+    <span class="nav-user company-badge-nav">
+      <i class="fas fa-building"></i>
+      <span id="companyNameNav">Loading...</span>
+    </span>
+    <button class="btn-logout" onclick="doLogout()">
+      <i class="fas fa-right-from-bracket"></i> Logout
+    </button>
+  </div>
+</nav>
+
+<div class="company-dashboard-wrapper">
+
+  <div class="company-header">
+    <div>
+      <h1 id="companyTagline">Recruitment Dashboard</h1>
+      <p style="color:var(--text-muted);font-size:14px;margin-top:4px">
+        Manage applications, view skill matches, shortlist candidates
+      </p>
+    </div>
+    <button class="btn-primary" onclick="loadAll()">
+      <i class="fas fa-arrows-rotate"></i> Refresh
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-tile total">
+      <i class="fas fa-file-lines"></i>
+      <div><span id="statTotal">0</span><p>Resumes Received</p></div>
+    </div>
+    <div class="stat-tile shortlisted">
+      <i class="fas fa-circle-check"></i>
+      <div><span id="statShortlisted">0</span><p>Shortlisted</p></div>
+    </div>
+    <div class="stat-tile rejected">
+      <i class="fas fa-circle-xmark"></i>
+      <div><span id="statRejected">0</span><p>Not Shortlisted</p></div>
+    </div>
+    <div class="stat-tile rate">
+      <i class="fas fa-percent"></i>
+      <div><span id="statRate">0%</span><p>Shortlist Rate</p></div>
+    </div>
+  </div>
+
+  <div class="company-content-grid">
+
+    <!-- LEFT -->
+    <div class="company-left">
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label><i class="fas fa-briefcase"></i> Job Role</label>
+          <div class="select-wrap">
+            <select id="filterRole" class="form-select" onchange="loadApplications()">
+              <option value="">All Roles</option>
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+        <div class="filter-group">
+          <label><i class="fas fa-filter"></i> Status</label>
+          <div class="select-wrap">
+            <select id="filterStatus" class="form-select" onchange="loadApplications()">
+              <option value="">All</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="rejected">Not Shortlisted</option>
+            </select>
+            <i class="fas fa-chevron-down select-arrow"></i>
+          </div>
+        </div>
+        <div class="filter-group search-group">
+          <label><i class="fas fa-search"></i> Search</label>
+          <input type="text" id="searchInput"
+                 placeholder="Search by candidate email..."
+                 class="form-input" oninput="filterCards()"/>
+        </div>
+      </div>
+
+      <div class="applications-container">
+        <div class="table-header">
+          <h3>
+            <i class="fas fa-users"
+               style="margin-right:8px;color:var(--primary)"></i>Candidates
+          </h3>
+          <span id="applicationsCount" class="count-badge">0 candidates</span>
+        </div>
+        <div id="applicationsGrid" class="applications-grid">
+          <div class="empty-state" style="grid-column:1/-1">
+            <i class="fas fa-inbox"></i>
+            <p>No applications yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="company-right">
+      <div class="sidebar-widget">
+        <div class="widget-header">
+          <i class="fas fa-chart-pie"></i> Applications by Role
+        </div>
+        <div id="roleBreakdown" class="role-breakdown">
+          <p style="color:var(--text-dim);font-size:13px">No data yet</p>
+        </div>
+      </div>
+
+      <div class="sidebar-widget">
+        <div class="widget-header">
+          <i class="fas fa-star"></i> Required Skills by Role
+          <button class="toggle-skills-ref" onclick="toggleSkillsRef()">
+            <i class="fas fa-chevron-down" id="skillsRefIcon"></i>
+          </button>
+        </div>
+        <div id="skillsRefContent" class="skills-ref-content hidden"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">
+      <i class="fas fa-xmark"></i>
+    </button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+
+var allApplications = [];
+var companyName     = '';
+
+var SKILLS_DB = {
+  "Infosys": {
+    "Software Engineer":  ["python","java","sql","git","communication"],
+    "Data Scientist":     ["python","machine learning","sql","statistics","excel"],
+    "Frontend Developer": ["html","css","javascript","react","figma"],
+    "DevOps Engineer":    ["docker","linux","aws","git","networking"],
+    "Business Analyst":   ["excel","sql","communication","powerpoint","reporting"]
+  },
+  "Wipro": {
+    "Software Engineer":     ["java","python","sql","git","problem solving"],
+    "Cloud Engineer":        ["aws","linux","docker","networking","python"],
+    "QA Engineer":           ["manual testing","selenium","sql","jira","excel"],
+    "Data Analyst":          ["sql","excel","python","tableau","reporting"],
+    "Cybersecurity Analyst": ["networking","linux","python","firewalls","compliance"]
+  },
+  "TCS": {
+    "Software Developer": ["java","sql","git","python","communication"],
+    "Data Engineer":      ["python","sql","excel","aws","reporting"],
+    "SAP Consultant":     ["sap","excel","sql","communication","reporting"],
+    "AI Engineer":        ["python","machine learning","sql","tensorflow","git"],
+    "Project Manager":    ["communication","excel","jira","leadership","reporting"]
+  },
+  "Accenture": {
+    "Software Engineer":  ["python","javascript","sql","git","communication"],
+    "Consulting Analyst": ["excel","powerpoint","communication","sql","reporting"],
+    "Cloud Architect":    ["aws","docker","linux","networking","python"],
+    "Data Scientist":     ["python","machine learning","sql","excel","statistics"],
+    "UX Designer":        ["figma","html","css","communication","user research"]
+  },
+  "Mahindra": {
+    "Software Engineer":         ["java","python","sql","git","communication"],
+    "Embedded Systems Engineer": ["c","c++","linux","microcontrollers","debugging"],
+    "Data Analyst":              ["sql","excel","python","reporting","powerpoint"],
+    "Mechanical Engineer":       ["autocad","matlab","solidworks","excel","communication"],
+    "HR Analyst":                ["excel","communication","recruitment","powerpoint","reporting"]
+  },
+  "HCL": {
+    "Software Engineer": ["java","python","sql","git","communication"],
+    "Network Engineer":  ["networking","cisco","linux","firewalls","communication"],
+    "Data Scientist":    ["python","machine learning","sql","excel","statistics"],
+    "ERP Consultant":    ["sap","sql","excel","communication","reporting"],
+    "DevOps Engineer":   ["docker","linux","aws","git","python"]
+  },
+  "Tech Mahindra": {
+    "Software Developer":     ["java","python","sql","git","communication"],
+    "Telecom Engineer":       ["networking","linux","python","communication","documentation"],
+    "QA Engineer":            ["manual testing","selenium","sql","jira","communication"],
+    "Business Analyst":       ["excel","sql","communication","powerpoint","reporting"],
+    "Cybersecurity Engineer": ["networking","linux","python","firewalls","communication"]
+  },
+  "Cognizant": {
+    "Software Engineer":  ["java","python","sql","git","communication"],
+    "Data Engineer":      ["python","sql","aws","excel","reporting"],
+    "Frontend Developer": ["html","css","javascript","react","git"],
+    "Cloud Engineer":     ["aws","docker","linux","python","networking"],
+    "Business Analyst":   ["excel","sql","communication","powerpoint","reporting"]
+  },
+  "Amazon": {
+    "Software Development Engineer": ["python","java","sql","algorithms","aws"],
+    "Data Scientist":                ["python","machine learning","sql","statistics","excel"],
+    "Cloud Solutions Architect":     ["aws","docker","linux","networking","python"],
+    "Product Manager":               ["communication","excel","sql","powerpoint","leadership"],
+    "ML Engineer":                   ["python","machine learning","tensorflow","sql","git"]
+  },
+  "Google": {
+    "Software Engineer": ["python","java","algorithms","sql","git"],
+    "Data Scientist":    ["python","machine learning","sql","statistics","excel"],
+    "UX Researcher":     ["communication","figma","excel","user research","reporting"],
+    "DevOps Engineer":   ["docker","linux","python","git","networking"],
+    "Product Manager":   ["communication","excel","sql","leadership","powerpoint"]
+  },
+  "Microsoft": {
+    "Software Engineer": ["python","java","sql","git","communication"],
+    "Cloud Engineer":    ["azure","docker","linux","networking","python"],
+    "Data Engineer":     ["python","sql","excel","azure","reporting"],
+    "AI Engineer":       ["python","machine learning","tensorflow","sql","git"],
+    "Business Analyst":  ["excel","powerpoint","sql","communication","reporting"]
+  },
+  "IBM": {
+    "Software Engineer":    ["java","python","sql","git","communication"],
+    "AI Consultant":        ["python","machine learning","communication","sql","excel"],
+    "Blockchain Developer": ["python","javascript","sql","git","communication"],
+    "Data Analyst":         ["sql","excel","python","tableau","reporting"],
+    "Cloud Architect":      ["aws","docker","linux","networking","python"]
+  },
+  "Deloitte": {
+    "Consulting Analyst":    ["excel","powerpoint","communication","sql","reporting"],
+    "Data Analyst":          ["sql","excel","python","tableau","reporting"],
+    "Cybersecurity Analyst": ["networking","linux","python","firewalls","compliance"],
+    "SAP Consultant":        ["sap","sql","excel","communication","reporting"],
+    "Risk Analyst":          ["excel","sql","statistics","communication","reporting"]
+  },
+  "Capgemini": {
+    "Software Engineer": ["java","python","sql","git","communication"],
+    "Data Scientist":    ["python","machine learning","sql","excel","statistics"],
+    "Cloud Engineer":    ["aws","docker","linux","python","networking"],
+    "Business Analyst":  ["excel","sql","communication","powerpoint","reporting"],
+    "ERP Consultant":    ["sap","sql","excel","communication","reporting"]
+  },
+  "Oracle": {
+    "Software Engineer":      ["java","sql","python","git","communication"],
+    "Database Administrator": ["sql","oracle db","linux","excel","reporting"],
+    "Cloud Engineer":         ["aws","docker","linux","python","networking"],
+    "ERP Consultant":         ["sql","excel","communication","reporting","powerpoint"],
+    "Data Analyst":           ["sql","excel","python","tableau","reporting"]
+  }
+};
+
+// ── On Page Load ──────────────────────────────────────────
+fetch('/api/company/session', { credentials: 'include' })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.company_name) {
+      window.location.href = 'company-login.html';
+      return;
+    }
+    companyName = d.company_name;
+    document.getElementById('companyNameNav').textContent = companyName;
+    document.getElementById('companyTagline').textContent =
+      companyName + ' — Recruitment Dashboard';
+    populateRoleFilter();
+    renderSkillsRef();
+    loadAll();
+    setInterval(function() { loadAll(); }, 15000);
+  })
+  .catch(function() {
+    window.location.href = 'company-login.html';
+  });
+
+function loadAll() {
+  loadStats();
+  loadApplications();
+}
+
+// ── Role Filter ───────────────────────────────────────────
+function populateRoleFilter() {
+  var roles = Object.keys(SKILLS_DB[companyName] || {});
+  var sel   = document.getElementById('filterRole');
+  sel.innerHTML = '<option value="">All Roles</option>';
+  for (var i = 0; i < roles.length; i++) {
+    var opt = document.createElement('option');
+    opt.value       = roles[i];
+    opt.textContent = roles[i];
+    sel.appendChild(opt);
+  }
+}
+
+// ── Skills Reference ──────────────────────────────────────
+function renderSkillsRef() {
+  var roles = SKILLS_DB[companyName] || {};
+  var html  = '';
+  var keys  = Object.keys(roles);
+  for (var i = 0; i < keys.length; i++) {
+    var role   = keys[i];
+    var skills = roles[role];
+    html += '<div class="skills-ref-role">';
+    html += '<div class="skills-ref-role-name">' +
+            '<i class="fas fa-briefcase" style="margin-right:6px;color:#a78bfa"></i>' +
+            role + '</div>';
+    html += '<div class="skills-tags">';
+    for (var j = 0; j < skills.length; j++) {
+      html += '<span class="skill-tag">' + skills[j] + '</span>';
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('skillsRefContent').innerHTML = html;
+}
+
+function toggleSkillsRef() {
+  var content = document.getElementById('skillsRefContent');
+  var icon    = document.getElementById('skillsRefIcon');
+  content.classList.toggle('hidden');
+  icon.className = content.classList.contains('hidden')
+    ? 'fas fa-chevron-down'
+    : 'fas fa-chevron-up';
+}
+
+// ── Stats ─────────────────────────────────────────────────
+function loadStats() {
+  fetch('/api/company/stats', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      document.getElementById('statTotal').textContent       = d.total;
+      document.getElementById('statShortlisted').textContent = d.shortlisted;
+      document.getElementById('statRejected').textContent    = d.rejected;
+      var rate = d.total > 0
+        ? Math.round((d.shortlisted / d.total) * 100) : 0;
+      document.getElementById('statRate').textContent = rate + '%';
+
+      var breakdown = document.getElementById('roleBreakdown');
+      if (d.by_role && d.by_role.length > 0) {
+        var html = '';
+        for (var i = 0; i < d.by_role.length; i++) {
+          var r = d.by_role[i];
+          html +=
+            '<div class="role-stat-item">' +
+              '<span class="role-stat-name">' +
+                '<i class="fas fa-briefcase"></i> ' + r.job_role +
+              '</span>' +
+              '<span class="role-stat-count">' + r.count + '</span>' +
+            '</div>';
+        }
+        breakdown.innerHTML = html;
+      } else {
+        breakdown.innerHTML =
+          '<p style="color:var(--text-dim);font-size:13px">No applications yet</p>';
+      }
+    })
+    .catch(function(err) { console.error('Stats error:', err); });
+}
+
+// ── Applications ──────────────────────────────────────────
+function loadApplications() {
+  var role   = document.getElementById('filterRole').value;
+  var status = document.getElementById('filterStatus').value;
+  var url    = '/api/company/applications?';
+  if (role)   url += 'job_role=' + encodeURIComponent(role) + '&';
+  if (status) url += 'status='   + encodeURIComponent(status) + '&';
+
+  fetch(url, { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      allApplications = d.applications || [];
+      renderApplications(allApplications);
+    })
+    .catch(function(err) { console.error('Applications error:', err); });
+}
+
+function filterCards() {
+  var q        = document.getElementById('searchInput').value.toLowerCase();
+  var filtered = [];
+  for (var i = 0; i < allApplications.length; i++) {
+    if (allApplications[i].user_email.toLowerCase().indexOf(q) !== -1) {
+      filtered.push(allApplications[i]);
+    }
+  }
+  renderApplications(filtered);
+}
+
+function renderApplications(apps) {
+  var grid  = document.getElementById('applicationsGrid');
+  var count = document.getElementById('applicationsCount');
+  count.textContent = apps.length + ' candidate' + (apps.length !== 1 ? 's' : '');
+
+  if (!apps.length) {
+    grid.innerHTML =
+      '<div class="empty-state" style="grid-column:1/-1">' +
+        '<i class="fas fa-inbox"></i>' +
+        '<p>No applications found</p>' +
+        '<span style="font-size:12px;color:var(--text-dim)">' +
+          'Applications will appear here once candidates submit resumes' +
+        '</span>' +
+      '</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < apps.length; i++) {
+    var a   = apps[i];
+    var isS = a.status === 'shortlisted';
+    html +=
+      '<div class="candidate-card-item" onclick="openModal(' + a.id + ')">' +
+        '<div style="display:flex;justify-content:space-between;' +
+                    'align-items:flex-start;margin-bottom:8px">' +
+          '<div class="candidate-email">' + a.user_email + '</div>' +
+          '<span class="status-badge status-' + a.status + '">' +
+            a.status + '</span>' +
+        '</div>' +
+        '<div class="candidate-role">' + a.job_role + '</div>' +
+        '<div class="candidate-meta">' +
+          '<div class="match-pct-big ' + (isS ? 'high' : 'low') + '">' +
+            a.match_percentage + '%' +
+          '</div>' +
+          '<div style="flex:1;margin-left:16px">' +
+            '<div class="app-match-bar" style="height:6px">' +
+              '<div class="app-match-fill ' + (isS ? 'high' : 'low') + '" ' +
+                   'style="width:' + a.match_percentage + '%"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">' +
+              new Date(a.submitted_at).toLocaleDateString() +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function openModal(id) {
+  var a = null;
+  for (var i = 0; i < allApplications.length; i++) {
+    if (allApplications[i].id === id) { a = allApplications[i]; break; }
+  }
+  if (!a) return;
+
+  var matched       = JSON.parse(a.matched_skills || '[]');
+  var missing       = JSON.parse(a.missing_skills || '[]');
+  var isShortlisted = a.status === 'shortlisted';
+  var color         = isShortlisted ? 'var(--success)' : 'var(--danger)';
+
+  var matchedHTML = '';
+  for (var i = 0; i < matched.length; i++) {
+    matchedHTML += '<span class="skill-tag matched">' + matched[i] + '</span>';
+  }
+  if (!matchedHTML) {
+    matchedHTML = '<span style="color:var(--text-dim);font-size:13px">None matched</span>';
+  }
+
+  var missingHTML = '';
+  for (var j = 0; j < missing.length; j++) {
+    missingHTML += '<span class="skill-tag missing">' + missing[j] + '</span>';
+  }
+  if (!missingHTML) {
+    missingHTML = '<span style="color:var(--success);font-size:13px">No skill gaps!</span>';
+  }
+
+  document.getElementById('modalContent').innerHTML =
+    '<div class="modal-candidate-name">' + a.user_email + '</div>' +
+    '<div class="modal-role">' + a.job_role + ' at ' + a.company_name + '</div>' +
+    '<div class="modal-match-big">' +
+      '<div class="modal-match-pct" style="color:' + color + '">' +
+        a.match_percentage + '%' +
+      '</div>' +
+      '<div>' +
+        '<div style="font-size:16px;font-weight:600">' +
+          (isShortlisted ? 'Shortlisted' : 'Not Shortlisted') +
+        '</div>' +
+        '<div class="modal-match-label">Minimum required: 70%</div>' +
+        '<span class="status-badge status-' + a.status + '" ' +
+              'style="margin-top:6px;display:inline-block">' +
+          a.status +
+        '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="match-bar-bg" style="margin-bottom:20px">' +
+      '<div class="match-bar-fill ' + (isShortlisted ? 'high' : 'low') + '" ' +
+           'style="width:' + a.match_percentage + '%"></div>' +
+    '</div>' +
+    '<div class="modal-skills-section">' +
+      '<div class="modal-skills-title">' +
+        '<i class="fas fa-check" style="color:var(--success);margin-right:6px"></i>' +
+        'Matched Skills (' + matched.length + ')' +
+      '</div>' +
+      '<div class="skills-tags">' + matchedHTML + '</div>' +
+    '</div>' +
+    '<div class="modal-skills-section" style="margin-top:16px">' +
+      '<div class="modal-skills-title">' +
+        '<i class="fas fa-xmark" style="color:var(--danger);margin-right:6px"></i>' +
+        'Missing Skills (' + missing.length + ')' +
+      '</div>' +
+      '<div class="skills-tags">' + missingHTML + '</div>' +
+    '</div>' +
+    '<div class="modal-date">' +
+      '<i class="fas fa-calendar" style="margin-right:6px"></i>' +
+      'Applied: ' + new Date(a.submitted_at).toLocaleString() +
+    '</div>';
+
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+function doLogout() {
+  fetch('/api/company/logout', { method: 'POST', credentials: 'include' })
+    .then(function() { window.location.href = 'index.html'; });
+}
+
+</script>
+</body>
+</html>
